@@ -1,0 +1,20 @@
+Meta:
+        file: 'Simulations'
+
+Config:
+        plotFontsize: 30
+        graphFile: "loaded_graph.p"
+        genfile: "Temp/belt_gens.p"
+        logfile: "Temp/belt_log.txt"
+        movieFilePrefix: "MovieFiles/belt_vid_max" 
+        plotGraph: True
+        plotGraphFile: "GraphImages/beltway_G.png"
+        plotCondensed: True
+        plotCondensedFile: "GraphImages/condensed_graph.png"
+        plotBarcode: True
+        plotBarcodeFileBase: "Barcodes/belt_max_bar"
+        plotCycles: True
+        plotCycleFileBase: "Barcodes/belt_max_cycles"
+        ripsType: "max" # can be max or min
+        cycleMovieType: "pers" # can be pers or impact, only affects movie
+        
