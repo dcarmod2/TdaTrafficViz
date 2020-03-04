@@ -256,7 +256,7 @@ def get_corresponding_nodes_from_simp(simp,graph):
     return [nodeL[x] for x in simp.coeffAugList[0][1]]
 
 
-def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,level,simps,dpi,plot_bars=False,bar_file=None,plot_cycles=False,cycle_file=None,cycle_type='pers',fontsize=30):
+def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,level,simps,dpi,plot_bars=False,bar_file=None,plot_cycles=False,cycle_file=None,cycle_type='pers',fontsize=30,figsize=(12,12)):
     plt.rcParams.update({'font.size': fontsize})
     num_rows = 3
     fig = plt.figure(figsize=(20,20), constrained_layout=False)
@@ -307,7 +307,15 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
         filteredG = make_graph(simps,mfilt,G)
         nx.set_node_attributes(filteredG,pos,'pos')
         spaths = {edge: G.edges[edge]['spath'] for edge in G.edges}
-        nx.set_edge_attributes(filteredG,spaths,'spath')
+        for edge in filteredG.edges:
+            spath_in_condensed = nx.dijkstra_path(G,edge[0],edge[1],weight='pace')
+            actual_spath = []
+            for i,src in enumerate(spath_in_condensed[:-2]):
+                actual_spath += spaths[(src,spath_in_condensed[i+1])]
+                actual_spath += nx.dijkstra_path(bigG,actual_spath[-1],spaths[(spath_in_condensed[i+1],spath_in_condensed[i+2])][0])
+            actual_spath += spaths[(spath_in_condensed[-2],spath_in_condensed[-1])]
+            filteredG.edges[edge]['spath'] = actual_spath
+
         # create rips graph features
 
         for node in filteredG.nodes:
@@ -345,10 +353,12 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
                             inter_ind=None,minbirth_maxdeath = (minb,maxd))
 
         # save a separate copy of total barcode
-        tempfig,tempax = plt.subplots()
+        tempfig,tempax = plt.subplots(figsize=figsize)
+        tempax.set_yticks([])
         plot_persistence_barcode_dan(modified_pers,tempax,title='Total Barcode',xlabel='Pace Filtration',ylabel='Generators',
                             inter_ind=None,minbirth_maxdeath = (minb,maxd))
-        plt.savefig('TotPers_level_'+str(level)+'/TotPers_frame_'+str(filt_ind)+'.png')
+
+        plt.savefig('TotPers_level_'+str(level)+'/TotPers_frame_'+str(filt_ind)+'.png',bbox_inches='tight')
         plt.close(tempfig)
 
 
@@ -379,9 +389,11 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
         ax11.clear()
         plot_persistence_barcode_dan(zero_pers,ax11,title='$H_0$ Barcode',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
 
-        tempfig,tempax = plt.subplots()
+        tempfig,tempax = plt.subplots(figsize=figsize)
+        tempax.set_yticks([])
         plot_persistence_barcode_dan(zero_pers,tempax,title='$H_0$ Barcode',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
-        plt.savefig('H0Plots_level_'+str(level)+'/H0Plots_frame_'+str(filt_ind)+'.png')
+    
+        plt.savefig('H0Plots_level_'+str(level)+'/H0Plots_frame_'+str(filt_ind)+'.png',bbox_inches='tight')
         plt.close(tempfig)
 
 
@@ -416,7 +428,7 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
             edgefeatureList = []
             spathList = []
             for edge in temp.edges:
-                spathList.append(G.edges[edge]['spath'])
+                spathList.append(filteredG.edges[edge]['spath'])
                 try:
                     edgefeatureList.append({'type': 'Feature', 'properties': {}, 'geometry': shapely.geometry.mapping(temp.edges[edge]['geometry'])})
                 except KeyError:
@@ -455,9 +467,10 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
         
         #
         ax21.clear()
-        tempfig,tempax = plt.subplots()
+        tempfig,tempax = plt.subplots(figsize=figsize)
+        tempax.set_yticks([])
         plot_persistence_barcode_dan(one_pers,tempax,title='$H_1$ Barcode',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
-        plt.savefig('H1Pers_level_'+str(level)+'/H1Pers_frame_'+str(filt_ind)+'.png')
+        plt.savefig('H1Pers_level_'+str(level)+'/H1Pers_frame_'+str(filt_ind)+'.png',bbox_inches='tight')
         plt.close(tempfig)
 
         if cycle_type == 'pers':
@@ -475,6 +488,7 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
 
     if plot_bars:
         fig,ax = plt.subplots(figsize=(12,12))
+        ax.set_yticks([])
         plot_persistence_barcode_dan(pers,ax,title='$H_0$ and $H_1$ Barcodes',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd))
         plt.savefig(bar_file, bbox_inches='tight')
         plt.close()
@@ -503,12 +517,13 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
         plt.close()
 
         fig,ax = plt.subplots(figsize=(12,12))
-        
+        ax.set_yticks([])
         plot_persistence_barcode_dan(one_pers,ax,title='$H_1$ Barcode',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
         plt.savefig(cycle_file.replace('.png','_bar.png'),bbox_inches='tight')
         plt.close()
 
         fig,ax = plt.subplots(figsize=(12,12))
+        ax.set_yticks([])
         plot_persistence_barcode_dan(one_impact,ax,title='$H_1$ Impact',xlabel='Log Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (0,np.log(maxd)),color_pal=color_pal)
         plt.savefig(cycle_file.replace('.png','_bar_impact.png'),bbox_inches='tight')
         plt.close()

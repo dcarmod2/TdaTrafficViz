@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Draw GeoJSON points</title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no" />
+<script src="https://api.mapbox.com/mapbox-gl-js/v1.7.0/mapbox-gl.js"></script>
+<link href="https://api.mapbox.com/mapbox-gl-js/v1.7.0/mapbox-gl.css" rel="stylesheet" />
+
+<script src="cyclePlotTemp.js"></script>
+<script src="ripsPlotTemp.js"></script>
+<script src="H0PlotTemp.js"></script>
+<style>
+html, body {
+  height: 100%;  
+  width: 100%;
+  padding: 0;
+  margin: 0;
+}
+
+#topLeft {
+  height: 30%;
+  width: 50%;
+  right: 50%;
+  bottom: 70%;
+  position: absolute;
+  padding: 0;
+}
+
+#topRight {
+  height: 30%;
+  width: 50%;
+  left: 50%;
+  bottom: 66%;
+  position: absolute;
+}
+
+#midLeft {
+  height: 30%;
+  width: 50%;
+  right: 50%;
+  bottom: 37%;
+  position: absolute;
+}
+
+#midRight {
+  height: 30%;
+  width: 50%;
+  left: 50%;
+  bottom: 33%;
+  position: absolute;
+}
+
+#botLeft {
+  height: 30%;
+  width: 50%;
+  right: 50%;
+  bottom: 4%;
+  position: absolute;
+}
+
+#botRight {
+  height: 30%;
+  width: 50%;
+  left: 50%;
+  bottom: 0%;
+  position: absolute;
+}
+
+img {
+  display: block;
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  max-height: 100%;
+}
+</style>
+</head>
+
+<body>
+      <div id="topLeft"><h3>Rips Complex</h3></div>
+      <div id="topRight"><img src="TOP_RIGHT_IMAGE"></div>
+      <div id="midLeft"><h3>Connected Components</h3></div>
+      <div id="midRight"><img src="MID_RIGHT_IMAGE"></div>
+      <div id="botLeft"><h3>Cycles</h3></div>
+      <div id="botRight"><img src="BOT_RIGHT_IMAGE"></div>
+      <script>
+        readJSONcycle();
+        readJSONrips();
+        readJSONH0();
+      </script>
+</body>
+</html>

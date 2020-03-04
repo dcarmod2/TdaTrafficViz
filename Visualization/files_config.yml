@@ -1,20 +1,20 @@
 Meta:
-        file: 'Simulations'
+        file: 'Make_GeoJ_and_Graphs.py'
 
 Config:
-        plotFontsize: 30
+        plotFontsize: 50
         graphFile: "loaded_graph.p"
         genfile: "Temp/belt_gens.p"
         logfile: "Temp/belt_log.txt"
-        movieFilePrefix: "MovieFiles/belt_vid_max" 
+        movieFilePrefix: "MovieFiles/belt_vid_min_manhattan" 
         plotGraph: True
         plotGraphFile: "GraphImages/beltway_G.png"
         plotCondensed: True
-        plotCondensedFile: "GraphImages/condensed_graph.png"
+        plotCondensedFile: "GraphImages/condensed_graph_manhattan.png"
         plotBarcode: True
-        plotBarcodeFileBase: "Barcodes/belt_max_bar"
+        plotBarcodeFileBase: "Barcodes/belt_min_bar_manhattan"
         plotCycles: True
-        plotCycleFileBase: "Barcodes/belt_max_cycles"
-        ripsType: "max" # can be max or min
+        plotCycleFileBase: "Barcodes/belt_min_cycles_manhattan"
+        ripsType: "min" # can be max or min
         cycleMovieType: "pers" # can be pers or impact, only affects movie
         
