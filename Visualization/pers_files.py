@@ -293,6 +293,10 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
             return val
         else:
             return maxval
+
+    def sort_key_one_gens(gentup):
+        filt,gen = gentup
+        return (filt,*gen[0])
     
     #Use for displaying multiple H_1 gens
     num_gens = 0
@@ -302,19 +306,21 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
         relevant_inds = [i for i,gen in enumerate(generators) if gen[0] <= mfilt]
         modified_pers = [(dim_minmax[0],(dim_minmax[1][0],threshmax(dim_minmax[1][1],mfilt))) for ind,dim_minmax in enumerate(pers)
                         if ind in relevant_inds]
-        relevant_gens = [gen for filt,gen in generators if filt <= mfilt]
+        relevant_gens = [(filt,gen) for filt,gen in generators if filt <= mfilt]
 
         filteredG = make_graph(simps,mfilt,G)
         nx.set_node_attributes(filteredG,pos,'pos')
-        spaths = {edge: G.edges[edge]['spath'] for edge in G.edges}
-        for edge in filteredG.edges:
-            spath_in_condensed = nx.dijkstra_path(G,edge[0],edge[1],weight='pace')
-            actual_spath = []
-            for i,src in enumerate(spath_in_condensed[:-2]):
-                actual_spath += spaths[(src,spath_in_condensed[i+1])]
-                actual_spath += nx.dijkstra_path(bigG,actual_spath[-1],spaths[(spath_in_condensed[i+1],spath_in_condensed[i+2])][0])
-            actual_spath += spaths[(spath_in_condensed[-2],spath_in_condensed[-1])]
-            filteredG.edges[edge]['spath'] = actual_spath
+        #spaths = {edge: G.edges[edge]['spath'] for edge in G.edges}
+        squished_nodes = {node: G.nodes[node]['squished_nodes'] for node in filteredG.nodes}
+        nx.set_node_attributes(filteredG,squished_nodes,'squished_nodes')
+        #for edge in filteredG.edges:
+        #    spath_in_condensed = nx.dijkstra_path(G,edge[0],edge[1],weight='pace')
+        #    actual_spath = []
+        #    for i,src in enumerate(spath_in_condensed[:-2]):
+        #        actual_spath += spaths[(src,spath_in_condensed[i+1])]
+                #actual_spath += nx.dijkstra_path(bigG,actual_spath[-1],spaths[(spath_in_condensed[i+1],spath_in_condensed[i+2])][0])
+        #    actual_spath += spaths[(spath_in_condensed[-2],spath_in_condensed[-1])]
+        #    filteredG.edges[edge]['spath'] = actual_spath
 
         # create rips graph features
 
@@ -349,13 +355,13 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
         nx.draw_networkx(filteredG,pos,node_size=20,with_labels=False,ax=ax00)
 
         ax01.clear()
-        plot_persistence_barcode_dan(modified_pers,ax01,title='Total Barcode',xlabel='Pace Filtration',ylabel='Generators',
+        plot_persistence_barcode_dan(modified_pers,ax01,title='Total Barcode',xlabel='Pace Filtration (s/m)',ylabel='Generators',
                             inter_ind=None,minbirth_maxdeath = (minb,maxd))
 
         # save a separate copy of total barcode
         tempfig,tempax = plt.subplots(figsize=figsize)
         tempax.set_yticks([])
-        plot_persistence_barcode_dan(modified_pers,tempax,title='Total Barcode',xlabel='Pace Filtration',ylabel='Generators',
+        plot_persistence_barcode_dan(modified_pers,tempax,title='Total Barcode',xlabel='Pace Filtration (s/m)',ylabel='Generators',
                             inter_ind=None,minbirth_maxdeath = (minb,maxd))
 
         plt.savefig('TotPers_level_'+str(level)+'/TotPers_frame_'+str(filt_ind)+'.png',bbox_inches='tight')
@@ -364,7 +370,7 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
 
         zero_pers = [x for x in modified_pers if x[0] == 0]
         comps = [list(x) for x in nx.connected_components(filteredG)]
-        relevant_gens_zero = [gen for gen in relevant_gens if len(gen[0]) == 1]
+        relevant_gens_zero = [gen[1] for gen in relevant_gens if len(gen[1][0]) == 1]
         color_pal = list(reversed(['#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255) for i,_ in enumerate(zero_pers)]))
 
 
@@ -376,22 +382,28 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
             temp.remove_edges_from(subgraph.edges)
             nx.draw_networkx(temp,pos,node_size=200,with_labels=False,ax=ax10,node_color='#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255))
             coord_list = [(temp.nodes[node]['y'], temp.nodes[node]['x']) for node in temp.nodes]
+            full_coord_list = [(bigG.nodes[node]['y'], bigG.nodes[node]['x']) for squished in temp.nodes for node in temp.nodes[squished]['squished_nodes']]
             nodefeatureList = [{'type':'Feature', 'properties':{'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in coord_list]
+            fullnodefeatureList = [{'type':'Feature', 'properties':{'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in full_coord_list]
 
             nodeFeatureCol = {'type':'FeatureCollection','features': nodefeatureList}
+            fullnodeFeatureCol = {'type':'FeatureCollection','features': fullnodefeatureList}
             with open('H0gens_level_'+str(level)+'/H0gens_frame_'+str(filt_ind)+'_gen_'+str(i)+'.json','w+') as f:
                 json.dump(nodeFeatureCol,f)
+
+            with open('H0gens_fullGraph_level_'+str(level)+'/H0gens_frame_'+str(filt_ind)+'_gen_'+str(i)+'.json','w+') as f:
+                json.dump(fullnodeFeatureCol,f)
 
         
             
 
         # 
         ax11.clear()
-        plot_persistence_barcode_dan(zero_pers,ax11,title='$H_0$ Barcode',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
+        plot_persistence_barcode_dan(zero_pers,ax11,title='$H_0$ Barcode',xlabel='Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
 
         tempfig,tempax = plt.subplots(figsize=figsize)
         tempax.set_yticks([])
-        plot_persistence_barcode_dan(zero_pers,tempax,title='$H_0$ Barcode',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
+        plot_persistence_barcode_dan(zero_pers,tempax,title='$H_0$ Barcode',xlabel='Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
     
         plt.savefig('H0Plots_level_'+str(level)+'/H0Plots_frame_'+str(filt_ind)+'.png',bbox_inches='tight')
         plt.close(tempfig)
@@ -403,7 +415,8 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
             fig.delaxes(ax)
         one_pers = [(x[0],(x[1][0],x[1][1])) for x in modified_pers if x[0] == 1]
         one_impact = [(x[0],(np.log(x[1][0]),np.log(x[1][1]))) for x in modified_pers if x[0] == 1]
-        relevant_gens_one = [gen for gen in relevant_gens if len(gen[0]) == 2]
+        relevant_gens_one_pre = sorted([gen for gen in relevant_gens if len(gen[1][0]) == 2],key=sort_key_one_gens)
+        relevant_gens_one = [gen for filt,gen in relevant_gens_one_pre]
         color_pal = list(reversed(['#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255) for i,_ in enumerate(one_pers)]))
 
         num_gens = len(relevant_gens_one)
@@ -427,10 +440,32 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
 
             edgefeatureList = []
             spathList = []
-            for edge in temp.edges:
-                spathList.append(filteredG.edges[edge]['spath'])
+            # order the edges in temp properly
+            unordered_edges = list(temp.edges)
+            ordered_edges = [unordered_edges[0]]
+
+            unordered_edges.remove(unordered_edges[0])
+            while unordered_edges:
+                last = ordered_edges[-1]
+                next_edge = [x for x in unordered_edges if x[0] == last[1]]
+                # could be empty if edges are reversed
+                if next_edge:
+                    ordered_edges.append(next_edge[0])
+                    unordered_edges.remove(next_edge[0])
+                else:
+                    next_edge = [x for x in unordered_edges if x[1] == last[1]][0]
+                    ordered_edges.append((next_edge[1],next_edge[0]))
+                    unordered_edges.remove(next_edge)
+            ordered_edges_rev = [(x[1],x[0]) for x in reversed(ordered_edges)]
+            # iterate through and add edges of cycle
+            for edge in ordered_edges:
+                sind = np.argmin([np.linalg.norm(np.array([bigG.nodes[x]['y'],bigG.nodes[x]['x']])-np.array(G.nodes[edge[0]]['pos'])) for x in bigG.nodes])
+                eind = np.argmin([np.linalg.norm(np.array([bigG.nodes[x]['y'],bigG.nodes[x]['x']])-np.array(G.nodes[edge[1]]['pos'])) for x in bigG.nodes])
+                spathsrc = list(bigG.nodes)[sind]
+                spathdest = list(bigG.nodes)[eind]
+                spathList.append(nx.dijkstra_path(bigG,spathsrc,spathdest,weight='pace'))
                 try:
-                    edgefeatureList.append({'type': 'Feature', 'properties': {}, 'geometry': shapely.geometry.mapping(temp.edges[edge]['geometry'])})
+                    edgefeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': shapely.geometry.mapping(temp.edges[edge]['geometry'])})
                 except KeyError:
                     source,tar = edge
                     lats,lons = temp.nodes[source]['y'], temp.nodes[source]['x']
@@ -441,42 +476,56 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
             with open('CycleEdgeData_level_'+str(level)+'/CycleEdgeData_frame_'+str(filt_ind)+'_gen_'+str(i)+'.json','w+') as f:
                 json.dump(edgeFeatureCol,f)
 
-            joinedPathList = []
-            for path1,path2 in zip(spathList[:-1],spathList[1:]):
-                to_add = nx.dijkstra_path(bigG,path1[-1],path2[0])
-                joinedPathList.append(path1)
-                joinedPathList.append(to_add)
-                
-            joinedPathList.append(spathList[-1])
-            joinedPathList.append(nx.dijkstra_path(bigG,spathList[-1][-1],spathList[0][0]))
+            spathList_rev = []
+            for edge in ordered_edges_rev:
+                sind = np.argmin([np.linalg.norm(np.array([bigG.nodes[x]['y'],bigG.nodes[x]['x']])-np.array(G.nodes[edge[0]]['pos'])) for x in bigG.nodes])
+                eind = np.argmin([np.linalg.norm(np.array([bigG.nodes[x]['y'],bigG.nodes[x]['x']])-np.array(G.nodes[edge[1]]['pos'])) for x in bigG.nodes])
+                spathsrc = list(bigG.nodes)[sind]
+                spathdest = list(bigG.nodes)[eind]
+                spathList_rev.append(nx.dijkstra_path(bigG,spathsrc,spathdest,weight='pace'))
+            concatPath = sum(spathList,[])
+            concatPath_rev = sum(spathList_rev,[])
 
-            concatPath = sum(joinedPathList,[])
             pathfeatureList = []
+            pathfeatureList_rev = []
             for src,tar in zip(concatPath[:-1],concatPath[1:]):
                 try:
-                    pathfeatureList.append({'type': 'Feature', 'properties': {}, 'geometry': shapely.geometry.mapping(bigG.edges[(src,tar)]['geometry'])})
+                    pathfeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': shapely.geometry.mapping(bigG.edges[(src,tar)]['geometry'])})
                 except KeyError:
                     lats,lons = bigG.nodes[src]['y'], bigG.nodes[src]['x']
                     latt,lont = bigG.nodes[tar]['y'], bigG.nodes[tar]['x']
                     pathfeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
 
             pathFeatureCol = {'type':'FeatureCollection','features': pathfeatureList}
+
+            for src,tar in zip(concatPath_rev[:-1],concatPath_rev[1:]):
+                try:
+                    pathfeatureList_rev.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': shapely.geometry.mapping(bigG.edges[(src,tar)]['geometry'])})
+                except KeyError:
+                    lats,lons = bigG.nodes[src]['y'], bigG.nodes[src]['x']
+                    latt,lont = bigG.nodes[tar]['y'], bigG.nodes[tar]['x']
+                    pathfeatureList_rev.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
+
+            pathFeatureCol_rev = {'type':'FeatureCollection','features': pathfeatureList_rev}
       
             with open('CyclePathData_level_'+str(level)+'/CyclePathData_frame_'+str(filt_ind)+'_gen_'+str(i)+'.json','w+') as f:
                 json.dump(pathFeatureCol,f)
+
+            with open('CyclePathDataRev_level_'+str(level)+'/CyclePathData_frame_'+str(filt_ind)+'_gen_'+str(i)+'.json','w+') as f:
+                json.dump(pathFeatureCol_rev,f)
         
         #
         ax21.clear()
         tempfig,tempax = plt.subplots(figsize=figsize)
         tempax.set_yticks([])
-        plot_persistence_barcode_dan(one_pers,tempax,title='$H_1$ Barcode',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
+        plot_persistence_barcode_dan(one_pers,tempax,title='$H_1$ Barcode',xlabel='Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
         plt.savefig('H1Pers_level_'+str(level)+'/H1Pers_frame_'+str(filt_ind)+'.png',bbox_inches='tight')
         plt.close(tempfig)
 
         if cycle_type == 'pers':
-            plot_persistence_barcode_dan(one_pers,ax21,title='$H_1$ Barcode',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
+            plot_persistence_barcode_dan(one_pers,ax21,title='$H_1$ Barcode',xlabel='Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
         elif cycle_type == 'impact':
-            plot_persistence_barcode_dan(one_impact,ax21,title='$H_1$ Impact',xlabel='Log Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (0,np.log(maxd)),color_pal=color_pal)
+            plot_persistence_barcode_dan(one_impact,ax21,title='$H_1$ Impact',xlabel='Log Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (0,np.log(maxd)),color_pal=color_pal)
         return fig.get_axes()
 
     #legend(loc=0)
@@ -489,7 +538,7 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
     if plot_bars:
         fig,ax = plt.subplots(figsize=(12,12))
         ax.set_yticks([])
-        plot_persistence_barcode_dan(pers,ax,title='$H_0$ and $H_1$ Barcodes',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd))
+        plot_persistence_barcode_dan(pers,ax,title='$H_0$ and $H_1$ Barcodes',xlabel='Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd))
         plt.savefig(bar_file, bbox_inches='tight')
         plt.close()
 
@@ -498,7 +547,9 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
         filteredG = make_graph(simps,maxd,G)
         one_pers = [(x[0],(x[1][0],x[1][1])) for x in pers if x[0] == 1]
         one_impact = [(x[0],(np.log(x[1][0]),np.log(x[1][1]))) for x in pers if x[0] == 1]
-        relevant_gens_one = [gen for filt,gen in generators if len(gen[0]) == 2]
+        relevant_gens_one_pre = sorted([gen for gen in generators if len(gen[1][0]) == 2],key=sort_key_one_gens)
+        relevant_gens_one = [gen for filt,gen in relevant_gens_one_pre]
+
         color_pal = list(reversed(['#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255) for i,_ in enumerate(one_pers)]))
 
         num_gens = len(relevant_gens_one)
@@ -518,170 +569,16 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
 
         fig,ax = plt.subplots(figsize=(12,12))
         ax.set_yticks([])
-        plot_persistence_barcode_dan(one_pers,ax,title='$H_1$ Barcode',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
+        plot_persistence_barcode_dan(one_pers,ax,title='$H_1$ Barcode',xlabel='Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
         plt.savefig(cycle_file.replace('.png','_bar.png'),bbox_inches='tight')
         plt.close()
 
         fig,ax = plt.subplots(figsize=(12,12))
         ax.set_yticks([])
-        plot_persistence_barcode_dan(one_impact,ax,title='$H_1$ Impact',xlabel='Log Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (0,np.log(maxd)),color_pal=color_pal)
+        plot_persistence_barcode_dan(one_impact,ax,title='$H_1$ Impact',xlabel='Log Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (0,np.log(maxd)),color_pal=color_pal)
         plt.savefig(cycle_file.replace('.png','_bar_impact.png'),bbox_inches='tight')
         plt.close()
 
     return 
 
-def produce_files(inter_pruned,gen_pruned,G,pos,filtrations,bigG,level,simps,dpi):
 
-    pers, geners = convert_to_gd_format(inter_pruned,gen_pruned)
-    generators = nodify(geners,G)
-    data = [(filtration , gen, ind) for filtration in filtrations 
-           for ind,gen in 
-               enumerate(get_corresponding_node_from_gen(gen_pruned,G,1,max_filt=filtration))
-           ]
-    minb,maxd = __min_birth_max_death(pers)
-    
-    def threshmax(val,maxval):
-        if val <= maxval:
-            return val
-        else:
-            return maxval
-    
-    #Use for displaying multiple H_1 gens
-    num_gens = 0
-
-    for filt_ind,mfilt in enumerate( [x for x in filtrations if x<= maxd]):
-        relevant_inds = [i for i,gen in enumerate(generators) if gen[0] <= mfilt]
-        modified_pers = [(dim_minmax[0],(dim_minmax[1][0],threshmax(dim_minmax[1][1],mfilt))) for ind,dim_minmax in enumerate(pers)
-                        if ind in relevant_inds]
-        relevant_gens = [gen for filt,gen in generators if filt <= mfilt]
-       
-
-        filteredG = make_graph(simps,mfilt,G)
-        nx.set_node_attributes(filteredG,pos,'pos')
-        spaths = {edge: G.edges[edge]['spath'] for edge in G.edges}
-        nx.set_edge_attributes(filteredG,spaths,'spath')
-
-        # Rips complex json data #
-        for node in filteredG.nodes:
-            filteredG.nodes[node]['x'] = G.nodes[node]['pos'][1]
-            filteredG.nodes[node]['y'] = G.nodes[node]['pos'][0]
-
-        coord_list = [(filteredG.nodes[node]['y'], filteredG.nodes[node]['x']) for node in filteredG.nodes]
-        nodefeatureList = [{'type':'Feature', 'properties':{},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in coord_list]
-
-        nodeFeatureCol = {'type':'FeatureCollection','features': nodefeatureList}
-        with open('RipsGraphNodes_level_'+str(level)+'/RipsGraphNodes_frame_'+str(filt_ind)+'.json','w+') as f:
-            json.dump(nodeFeatureCol,f)
-
-        edgefeatureList = []
-
-
-        for edge in filteredG.edges:
-            try:
-                edgefeatureList.append({'type': 'Feature', 'properties': {}, 'geometry': shapely.geometry.mapping(filteredG.edges[edge]['geometry'])})
-            except KeyError:
-                source,tar = edge
-                lats,lons = filteredG.nodes[source]['y'], filteredG.nodes[source]['x']
-                latt,lont = filteredG.nodes[tar]['y'], filteredG.nodes[tar]['x']
-                edgefeatureList.append({'type': 'Feature', 'properties': {}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
-
-        edgeFeatureCol = {'type':'FeatureCollection','features': edgefeatureList}
-        with open('RipsGraphEdges_level_'+str(level)+'/RipsGraphEdges_frame_'+str(filt_ind)+'.json','w+') as f:
-            json.dump(edgeFeatureCol,f)
-
-        # Total persistence plot #
-
-        fig,ax = plt.subplots()
-        plot_persistence_barcode_dan(modified_pers,ax,title='Total Barcode',xlabel='Pace Filtration',ylabel='Generators',
-                            inter_ind=None,minbirth_maxdeath = (minb,maxd))
-        plt.savefig('TotPers_level_'+str(level)+'/TotPers_frame_'+str(filt_ind)+'.png')
-        plt.close()
-
-        zero_pers = [x for x in modified_pers if x[0] == 0]
-        comps = [list(x) for x in nx.connected_components(filteredG)]
-        relevant_gens_zero = [gen for gen in relevant_gens if len(gen[0]) == 1]
-        color_pal = list(reversed(['#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255) for i,_ in enumerate(zero_pers)]))
-
-
-        for i,gen in enumerate(relevant_gens_zero):
-            comp = [x for x in comps if gen[0][0] in x][0]
-            subgraph = filteredG.subgraph(comp)
-            temp = subgraph.copy()
-            coord_list = [(temp.nodes[node]['y'], temp.nodes[node]['x']) for node in temp.nodes]
-            nodefeatureList = [{'type':'Feature', 'properties':{'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in coord_list]
-
-            nodeFeatureCol = {'type':'FeatureCollection','features': nodefeatureList}
-            with open('H0gens_level_'+str(level)+'/H0gens_frame_'+str(filt_ind)+'_gen_'+str(i)+'.json','w+') as f:
-                json.dump(nodeFeatureCol,f)
-
- #           temp.remove_edges_from(subgraph.edges)
-#            nx.draw_networkx(temp,pos,node_size=200,with_labels=False,ax=ax10,node_color='#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255))
-
-            
-        fig,ax = plt.subplots()
-        plot_persistence_barcode_dan(zero_pers,ax,title='$H_0$ Barcode',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
-        plt.savefig('H0Plots_level_'+str(level)+'/H0Plots_frame_'+str(filt_ind)+'.png')
-        plt.close()
-
-        one_pers = [x for x in modified_pers if x[0] == 1]
-        relevant_gens_one = [gen for gen in relevant_gens if len(gen[0]) == 2]
-        color_pal = list(reversed(['#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255) for i,_ in enumerate(one_pers)]))
-
-        for i,gen in enumerate(relevant_gens_one):
-            subgraph = filteredG.edge_subgraph(gen)
-            temp = subgraph.copy()
-            
-            coord_list = [(temp.nodes[node]['y'], temp.nodes[node]['x']) for node in temp.nodes]
-            nodefeatureList = [{'type':'Feature', 'properties':{'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in coord_list]
-
-            nodeFeatureCol = {'type':'FeatureCollection','features': nodefeatureList}
-            with open('CycleNodeData_level_'+str(level)+'/CycleNodeData_frame_'+str(filt_ind)+'_gen_'+str(i)+'.json','w+') as f:
-                json.dump(nodeFeatureCol,f)
-
-            edgefeatureList = []
-            spathList = []
-            for edge in temp.edges:
-                spathList.append(G.edges[edge]['spath'])
-                try:
-                    edgefeatureList.append({'type': 'Feature', 'properties': {}, 'geometry': shapely.geometry.mapping(temp.edges[edge]['geometry'])})
-                except KeyError:
-                    source,tar = edge
-                    lats,lons = temp.nodes[source]['y'], temp.nodes[source]['x']
-                    latt,lont = temp.nodes[tar]['y'], temp.nodes[tar]['x']
-                    edgefeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
-
-            edgeFeatureCol = {'type':'FeatureCollection','features': edgefeatureList}
-            with open('CycleEdgeData_level_'+str(level)+'/CycleEdgeData_frame_'+str(filt_ind)+'_gen_'+str(i)+'.json','w+') as f:
-                json.dump(edgeFeatureCol,f)
-
-            joinedPathList = []
-            for path1,path2 in zip(spathList[:-1],spathList[1:]):
-                to_add = nx.dijkstra_path(bigG,path1[-1],path2[0])
-                joinedPathList.append(path1)
-                joinedPathList.append(to_add)
-                
-            joinedPathList.append(spathList[-1])
-            joinedPathList.append(nx.dijkstra_path(bigG,spathList[-1][-1],spathList[0][0]))
-
-            concatPath = sum(joinedPathList,[])
-            pathfeatureList = []
-            for src,tar in zip(concatPath[:-1],concatPath[1:]):
-                try:
-                    pathfeatureList.append({'type': 'Feature', 'properties': {}, 'geometry': shapely.geometry.mapping(bigG.edges[(src,tar)]['geometry'])})
-                except KeyError:
-                    lats,lons = bigG.nodes[src]['y'], bigG.nodes[src]['x']
-                    latt,lont = bigG.nodes[tar]['y'], bigG.nodes[tar]['x']
-                    pathfeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
-
-            pathFeatureCol = {'type':'FeatureCollection','features': pathfeatureList}
-      
-            with open('CyclePathData_level_'+str(level)+'/CyclePathData_frame_'+str(filt_ind)+'_gen_'+str(i)+'.json','w+') as f:
-                json.dump(pathFeatureCol,f)
-
-                   
-        fig,ax = plt.subplots()
-        plot_persistence_barcode_dan(one_pers,ax,title='$H_1$ Barcode',xlabel='Pace Filtration',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
-        plt.savefig('H1Pers_level_'+str(level)+'/H1Pers_frame_'+str(filt_ind)+'.png')
-        plt.close()
-    
-    return

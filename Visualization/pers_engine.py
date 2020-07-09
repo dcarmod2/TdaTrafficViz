@@ -109,6 +109,9 @@ def condense_graph_spaths(subG,clusterlabelfile, num_levels, level, nodeL, savef
             fast_src,fast_dest = paces[quickest_pace_ind][1],paces[quickest_pace_ind][2]
             condensed_G.edges[(i,i)]['spath'] = nx.dijkstra_path(subG,fast_src,fast_dest,weight='pace')
 
+    #set positions
+    pos = {node:(np.mean([subG.nodes[cnode]['y'] for cnode in cluster_df[cluster_df['community']==node]['node']]),np.mean([subG.nodes[cnode]['x'] for cnode in cluster_df[cluster_df['community']==node]['node']])) for node in condensed_G.nodes}
+    nx.set_node_attributes(condensed_G,pos,'pos')
 
     for start,end in itertools.permutations(condensed_G.nodes,2):
         clus1 = cluster_df[cluster_df['community']==start]
@@ -120,12 +123,15 @@ def condense_graph_spaths(subG,clusterlabelfile, num_levels, level, nodeL, savef
         
         if np.isfinite(edges_12_pace):
             condensed_G.add_edge(start,end,pace=edges_12_pace)
-            sind = np.argmin([x[0] for x in edges_12])
+            #get closest actual nodes to centroid
+            sind = np.argmin([np.linalg.norm(np.array([subG.nodes[x[1]]['y'],subG.nodes[x[1]]['x']])-np.array(condensed_G.nodes[start]['pos'])) for x in edges_12])
+            qsrc = edges_12[sind][1]
+            eind = np.argmin([np.linalg.norm(np.array([subG.nodes[x[2]]['y'],subG.nodes[x[2]]['x']])-np.array(condensed_G.nodes[end]['pos'])) for x in edges_12])
+            qsrc = edges_12[eind][2]
             qsrc,qdest = edges_12[sind][1],edges_12[sind][2]
             condensed_G.edges[(start,end)]['spath'] = nx.dijkstra_path(subG,qsrc,qdest,weight = 'pace')
 
-    pos = {node:(np.mean([subG.nodes[cnode]['y'] for cnode in cluster_df[cluster_df['community']==node]['node']]),np.mean([subG.nodes[cnode]['x'] for cnode in cluster_df[cluster_df['community']==node]['node']])) for node in condensed_G.nodes}
-    nx.set_node_attributes(condensed_G,pos,'pos')
+    
     if savefile:
         nx.write_gpickle(condensed_G,savefile)
     toc = timemod.clock()

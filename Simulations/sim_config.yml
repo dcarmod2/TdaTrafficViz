@@ -2,7 +2,7 @@ Meta:
         file: 'Simulations'
 
 Config:
-        plotFontsize: 30
+        plotFontsize: 50
         graphFile: "beltway_G.p"
         genfile: "Temp/belt_gens.p"
         logfile: "Temp/belt_log.txt"

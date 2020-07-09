@@ -21,7 +21,7 @@ if __name__ == "__main__":
     ripsType = config['ripsType']
     cyclePlotType = config['cycleMovieType']
     subG = get_largest_comp(config['graphFile'])
-    plt.rcParams.update({'font.size': 22})
+    plt.rcParams.update({'font.size': 30})
 
     # Assign speed and pace to edges
     for edge in subG.edges:

@@ -4,17 +4,17 @@ Meta:
 Config:
         plotFontsize: 50
         graphFile: "loaded_graph.p"
-        genfile: "Temp/belt_gens.p"
-        logfile: "Temp/belt_log.txt"
-        movieFilePrefix: "MovieFiles/belt_vid_min_manhattan" 
+        genfile: "Temp/gens.p"
+        logfile: "Temp/log.txt"
+        movieFilePrefix: "MovieFiles/vid_min_manhattan" 
         plotGraph: True
-        plotGraphFile: "GraphImages/beltway_G.png"
+        plotGraphFile: "GraphImages/full_G.png"
         plotCondensed: True
         plotCondensedFile: "GraphImages/condensed_graph_manhattan.png"
         plotBarcode: True
-        plotBarcodeFileBase: "Barcodes/belt_min_bar_manhattan"
+        plotBarcodeFileBase: "Barcodes/min_bar_manhattan"
         plotCycles: True
-        plotCycleFileBase: "Barcodes/belt_min_cycles_manhattan"
+        plotCycleFileBase: "Barcodes/min_cycles_manhattan"
         ripsType: "min" # can be max or min
         cycleMovieType: "pers" # can be pers or impact, only affects movie
         

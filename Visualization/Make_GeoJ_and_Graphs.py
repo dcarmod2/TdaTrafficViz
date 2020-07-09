@@ -65,6 +65,34 @@ if __name__ == "__main__":
     nx.write_gpickle(subG.copy(),'subG.p')
     # For each level condensed by Louvain, peform calculations
 
+    if num_levels < 5:
+        raise Exception("Too few levels in Louvain.")
+
+    level = 0
+    coord_list = [(subG.nodes[node]['y'], subG.nodes[node]['x']) for node in subG.nodes]
+    nodefeatureList = [{'type':'Feature', 'properties':{},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in coord_list]
+
+    nodeFeatureCol = {'type':'FeatureCollection','features': nodefeatureList}
+    with open('GraphNodes_level_'+str(level)+'/GraphNodes.json','w+') as f:
+        json.dump(nodeFeatureCol,f)
+
+    edgefeatureList = []
+
+
+    for edge in subG.edges:
+        try:
+            edgefeatureList.append({'type': 'Feature', 'properties': {}, 'geometry': shapely.geometry.mapping(subG.edges[edge]['geometry'])})
+        except KeyError:
+            source,tar = edge
+            lats,lons = subG.nodes[source]['y'], subG.nodes[source]['x']
+            latt,lont = subG.nodes[tar]['y'], subG.nodes[tar]['x']
+            edgefeatureList.append({'type': 'Feature', 'properties': {}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
+
+    edgeFeatureCol = {'type':'FeatureCollection','features': edgefeatureList}
+    with open('GraphEdges_level_'+str(level)+'/GraphEdges.json','w+') as f:
+        json.dump(edgeFeatureCol,f)
+
+    #run on condensed graphs
     for level in range(-1*num_levels+2,0):
         
         cluster_df,condensed_G = condense_graph_spaths(subG,"temp.txt",num_levels,level,nodeL)
@@ -80,6 +108,33 @@ if __name__ == "__main__":
             temp = nx.draw_networkx_edge_labels(condensed_G,pos,edge_labels=labels_rounded)
             plt.savefig(config['plotCondensedFile'].replace('.png','_level_'+str(level)+'.png'),bbox_inches='tight')
             plt.close()
+
+            for node in condensed_G.nodes:
+                condensed_G.nodes[node]['x'] = pos[node][1]
+                condensed_G.nodes[node]['y'] = pos[node][0]
+            coord_list = [(condensed_G.nodes[node]['y'], condensed_G.nodes[node]['x']) for node in condensed_G.nodes]
+            nodefeatureList = [{'type':'Feature', 'properties':{},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in coord_list]
+
+            nodeFeatureCol = {'type':'FeatureCollection','features': nodefeatureList}
+            with open('GraphNodes_level_'+str(level)+'/GraphNodes.json','w+') as f:
+                json.dump(nodeFeatureCol,f)
+
+            edgefeatureList = []
+
+
+            for edge in condensed_G.edges:
+                try:
+                    edgefeatureList.append({'type': 'Feature', 'properties': {}, 'geometry': shapely.geometry.mapping(condensed_G.edges[edge]['geometry'])})
+                except KeyError:
+                    source,tar = edge
+                    lats,lons = condensed_G.nodes[source]['y'], condensed_G.nodes[source]['x']
+                    latt,lont = condensed_G.nodes[tar]['y'], condensed_G.nodes[tar]['x']
+                    edgefeatureList.append({'type': 'Feature', 'properties': {}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
+
+            edgeFeatureCol = {'type':'FeatureCollection','features': edgefeatureList}
+            with open('GraphEdges_level_'+str(level)+'/GraphEdges.json','w+') as f:
+                json.dump(edgeFeatureCol,f)
+
         #in case we want to use speed
         for edge in condensed_G.edges:
             condensed_G.edges[edge]['speed'] = 1/condensed_G.edges[edge]['pace']
@@ -99,7 +154,14 @@ if __name__ == "__main__":
     
         print("Forming Rips complex...")
         tic = timemod.clock()
-        simps = sum([sorted(get_simplicesGen(dist,filtrations_max,k,2))  for k in range(0,3)],[])
+        if ripsType == "max":
+            rips_comp = [sorted(get_simplicesGen(dist,filtrations_max,k,2))  for k in range(0,3)]
+        elif ripsType == "min":
+            rips_comp = [sorted(get_simplicesGen_min(dist,filtrations_max,k,2))  for k in range(0,3)]
+        else:
+            raise Exception('Error: unknown rips configuration options')
+        simps = sum(rips_comp,[])
+
         toc = timemod.clock()
         print("Rips complex formed in " + str(toc-tic) + " seconds.")
         with open(logfile,"a") as f:
