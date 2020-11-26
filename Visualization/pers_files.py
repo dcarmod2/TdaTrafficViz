@@ -11,9 +11,26 @@ import time as timemod
 import re
 import pickle
 import json
-import shapely.geometry
+import shapely.geometry    
 
+def reduce_cycle(cycle):
+    inner_edges = cycle[1:-1]
+    irr_cycles = []
+    cur_ind = 0
+    while True:
+        if cur_ind >= len(inner_edges)-1:
+            break
+        for i in range(len(inner_edges)-1,cur_ind,-1):
+            if inner_edges[cur_ind] == inner_edges[i]:
+                inner_edges = inner_edges[:cur_ind]+inner_edges[i:]
+                cur_ind = 0
+                break
+        print(inner_edges)
+        # We can move to next index regardless of whether or not pruning happened
+        cur_ind += 1
 
+    return [cycle[0]] + inner_edges + [cycle[-1]]
+            
 
 def num_display(num):
     return "{0:.0f}".format(num)
@@ -81,6 +98,7 @@ def plot_persistence_barcode_dan(
     legend=False,
     minbirth_maxdeath = None,
     color_pal = None,
+    add_yticks = True,
     **kwargs
 ):
     """This function plots the persistence bar code from persistence values list
@@ -144,6 +162,7 @@ def plot_persistence_barcode_dan(
         persistence = sorted(persistence, key=lambda birth: birth[1][0])
 
         (min_birth, max_death) = minbirth_maxdeath or __min_birth_max_death(persistence)
+        min_bar_length = (max_death - min_birth)/100
         ind = 0
         delta = (max_death - min_birth) * inf_delta
         # Replace infinity values with max_death + delta for bar code to be more
@@ -167,7 +186,7 @@ def plot_persistence_barcode_dan(
                 if ax:
                     ax.barh(
                     ind,
-                    (interval[1][1] - interval[1][0]),
+                    max(min_bar_length,(interval[1][1] - interval[1][0])),
                     height=0.8,
                     left=interval[1][0],
                     alpha=alpha,
@@ -177,7 +196,7 @@ def plot_persistence_barcode_dan(
                 else:
                     plt.barh(
                         ind,
-                        (interval[1][1] - interval[1][0]),
+                        max(min_bar_length,(interval[1][1] - interval[1][0])),
                         height=0.8,
                         left=interval[1][0],
                         alpha=alpha,
@@ -221,9 +240,11 @@ def plot_persistence_barcode_dan(
         ax.set(**kwargs)
         # Ends plot on infinity value and starts a little bit before min_birth
         if ax:
-            ax.axis([axis_start, infinity, 0, ind])
+            ax.axis([axis_start, infinity, -1, ind])
+            if add_yticks:
+                ax.set_yticks(range(0,ind,ind//10 + 1))                
         else:
-            plt.axis([axis_start, infinity, 0, ind])
+            plt.axis([axis_start, infinity, -1, ind])
             
         return plt
 
@@ -371,7 +392,7 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
         zero_pers = [x for x in modified_pers if x[0] == 0]
         comps = [list(x) for x in nx.connected_components(filteredG)]
         relevant_gens_zero = [gen[1] for gen in relevant_gens if len(gen[1][0]) == 1]
-        color_pal = list(reversed(['#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255) for i,_ in enumerate(zero_pers)]))
+        color_pal = list(reversed(['#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255) for i,_ in enumerate(zero_pers)]))
 
 
         ax10.clear()
@@ -380,11 +401,11 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
             subgraph = filteredG.subgraph(comp)
             temp = subgraph.copy()
             temp.remove_edges_from(subgraph.edges)
-            nx.draw_networkx(temp,pos,node_size=200,with_labels=False,ax=ax10,node_color='#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255))
+            nx.draw_networkx(temp,pos,node_size=200,with_labels=False,ax=ax10,node_color='#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255))
             coord_list = [(temp.nodes[node]['y'], temp.nodes[node]['x']) for node in temp.nodes]
             full_coord_list = [(bigG.nodes[node]['y'], bigG.nodes[node]['x']) for squished in temp.nodes for node in temp.nodes[squished]['squished_nodes']]
-            nodefeatureList = [{'type':'Feature', 'properties':{'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in coord_list]
-            fullnodefeatureList = [{'type':'Feature', 'properties':{'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in full_coord_list]
+            nodefeatureList = [{'type':'Feature', 'properties':{'color':'#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255)},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in coord_list]
+            fullnodefeatureList = [{'type':'Feature', 'properties':{'color':'#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255)},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in full_coord_list]
 
             nodeFeatureCol = {'type':'FeatureCollection','features': nodefeatureList}
             fullnodeFeatureCol = {'type':'FeatureCollection','features': fullnodefeatureList}
@@ -417,7 +438,7 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
         one_impact = [(x[0],(np.log(x[1][0]),np.log(x[1][1]))) for x in modified_pers if x[0] == 1]
         relevant_gens_one_pre = sorted([gen for gen in relevant_gens if len(gen[1][0]) == 2],key=sort_key_one_gens)
         relevant_gens_one = [gen for filt,gen in relevant_gens_one_pre]
-        color_pal = list(reversed(['#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255) for i,_ in enumerate(one_pers)]))
+        color_pal = list(reversed(['#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255) for i,_ in enumerate(one_pers)]))
 
         num_gens = len(relevant_gens_one)
         inner_grid = outer_grid[2,0].subgridspec(int(np.ceil(np.sqrt(num_gens))),int(np.ceil(np.sqrt(num_gens))))
@@ -429,10 +450,10 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
             fig.add_subplot(ax)
             subgraph = filteredG.edge_subgraph(gen)
             temp = subgraph.copy()
-            nx.draw_networkx(temp,pos,node_size=20,with_labels=False,ax=ax,edge_color='#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255))
+            nx.draw_networkx(temp,pos,node_size=20,with_labels=False,ax=ax,edge_color='#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255))
 
             coord_list = [(temp.nodes[node]['y'], temp.nodes[node]['x']) for node in temp.nodes]
-            nodefeatureList = [{'type':'Feature', 'properties':{'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in coord_list]
+            nodefeatureList = [{'type':'Feature', 'properties':{'color':'#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255)},'geometry':{'type':'Point','coordinates': (x,y)}} for y,x in coord_list]
 
             nodeFeatureCol = {'type':'FeatureCollection','features': nodefeatureList}
             with open('CycleNodeData_level_'+str(level)+'/CycleNodeData_frame_'+str(filt_ind)+'_gen_'+str(i)+'.json','w+') as f:
@@ -465,12 +486,12 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
                 spathdest = list(bigG.nodes)[eind]
                 spathList.append(nx.dijkstra_path(bigG,spathsrc,spathdest,weight='pace'))
                 try:
-                    edgefeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': shapely.geometry.mapping(temp.edges[edge]['geometry'])})
+                    edgefeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255)}, 'geometry': shapely.geometry.mapping(temp.edges[edge]['geometry'])})
                 except KeyError:
                     source,tar = edge
                     lats,lons = temp.nodes[source]['y'], temp.nodes[source]['x']
                     latt,lont = temp.nodes[tar]['y'], temp.nodes[tar]['x']
-                    edgefeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
+                    edgefeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255)}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
 
             edgeFeatureCol = {'type':'FeatureCollection','features': edgefeatureList}
             with open('CycleEdgeData_level_'+str(level)+'/CycleEdgeData_frame_'+str(filt_ind)+'_gen_'+str(i)+'.json','w+') as f:
@@ -490,21 +511,21 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
             pathfeatureList_rev = []
             for src,tar in zip(concatPath[:-1],concatPath[1:]):
                 try:
-                    pathfeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': shapely.geometry.mapping(bigG.edges[(src,tar)]['geometry'])})
+                    pathfeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255)}, 'geometry': shapely.geometry.mapping(bigG.edges[(src,tar)]['geometry'])})
                 except KeyError:
                     lats,lons = bigG.nodes[src]['y'], bigG.nodes[src]['x']
                     latt,lont = bigG.nodes[tar]['y'], bigG.nodes[tar]['x']
-                    pathfeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
+                    pathfeatureList.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255)}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
 
             pathFeatureCol = {'type':'FeatureCollection','features': pathfeatureList}
 
             for src,tar in zip(concatPath_rev[:-1],concatPath_rev[1:]):
                 try:
-                    pathfeatureList_rev.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': shapely.geometry.mapping(bigG.edges[(src,tar)]['geometry'])})
+                    pathfeatureList_rev.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255)}, 'geometry': shapely.geometry.mapping(bigG.edges[(src,tar)]['geometry'])})
                 except KeyError:
                     lats,lons = bigG.nodes[src]['y'], bigG.nodes[src]['x']
                     latt,lont = bigG.nodes[tar]['y'], bigG.nodes[tar]['x']
-                    pathfeatureList_rev.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255)}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
+                    pathfeatureList_rev.append({'type': 'Feature', 'properties': {'color':'#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255)}, 'geometry': {'type':'LineString', 'coordinates': ((lons,lats),(lont,latt))}})
 
             pathFeatureCol_rev = {'type':'FeatureCollection','features': pathfeatureList_rev}
       
@@ -550,7 +571,7 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
         relevant_gens_one_pre = sorted([gen for gen in generators if len(gen[1][0]) == 2],key=sort_key_one_gens)
         relevant_gens_one = [gen for filt,gen in relevant_gens_one_pre]
 
-        color_pal = list(reversed(['#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255) for i,_ in enumerate(one_pers)]))
+        color_pal = list(reversed(['#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255) for i,_ in enumerate(one_pers)]))
 
         num_gens = len(relevant_gens_one)
         inner_grid = fig.add_gridspec(int(np.ceil(np.sqrt(num_gens))),int(np.ceil(np.sqrt(num_gens))))
@@ -562,7 +583,7 @@ def ani_frame_files(filename,inter_pruned,gen_pruned,G,pos,filtrations,bigG,leve
             fig.add_subplot(ax)
             subgraph = filteredG.edge_subgraph(gen)
             temp = subgraph.copy()
-            nx.draw_networkx(temp,pos,node_size=20,with_labels=False,ax=ax,edge_color='#%02x%02x%02x'%(20*i % 255,30**i % 255, 40*i % 255))
+            nx.draw_networkx(temp,pos,node_size=20,with_labels=False,ax=ax,edge_color='#%02x%02x%02x'%(max(200,20*i % 255),30*i % 255, 60*i % 255))
 
         plt.savefig(cycle_file,bbox_inches='tight')
         plt.close()

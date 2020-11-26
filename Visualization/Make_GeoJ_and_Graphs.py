@@ -16,6 +16,7 @@ if __name__ == "__main__":
     config = yml['Config']
     fontsize = config['plotFontsize']
     genfile = config['genfile']
+    interfile = config['interfile']
     logfile = config['logfile']
     movieFilePrefix = config['movieFilePrefix']
     ripsType = config['ripsType']
@@ -188,6 +189,8 @@ if __name__ == "__main__":
         toc = timemod.clock()
         with open(logfile,"a") as f:
             f.write("Animation: " + str(toc-tic) + " seconds.")
-        with open(genfile,"wb") as f:
+        with open(interfile+"_level_" + str(level) + ".p","wb") as f:
+            pickle.dump(inter_pruned,f)
+        with open(genfile+"_level_"+str(level)+'.p',"wb") as f:
             pickle.dump(gen_pruned,f)
     

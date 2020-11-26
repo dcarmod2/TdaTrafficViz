@@ -79,6 +79,7 @@ def plot_persistence_barcode_dan(
     legend=False,
     minbirth_maxdeath = None,
     color_pal = None,
+    add_yticks = True,
     **kwargs
 ):
     """This function plots the persistence bar code from persistence values list
@@ -219,9 +220,11 @@ def plot_persistence_barcode_dan(
         ax.set(**kwargs)
         # Ends plot on infinity value and starts a little bit before min_birth
         if ax:
-            ax.axis([axis_start, infinity, 0, ind])
+            ax.axis([axis_start, infinity, -1, ind])
+            if add_yticks:
+                ax.set_yticks(range(0,ind,ind//10 + 1))
         else:
-            plt.axis([axis_start, infinity, 0, ind])
+            plt.axis([axis_start, infinity, -1, ind])
             
         return plt
 
@@ -366,9 +369,9 @@ def ani_frame(filename,inter_pruned,gen_pruned,G,pos,filtrations,simps,dpi,plot_
         #
         ax21.clear()
         if cycle_type == 'pers':
-            plot_persistence_barcode_dan(one_pers,ax21,title='$H_1$ Barcode',xlabel='Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
+            plot_persistence_barcode_dan(one_pers,ax21,title='$H_1$ Barcode',xlabel='Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal,add_yticks=True)
         elif cycle_type == 'impact':
-            plot_persistence_barcode_dan(one_impact,ax21,title='$H_1$ Impact',xlabel='Log Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (0,np.log(maxd)),color_pal=color_pal)
+            plot_persistence_barcode_dan(one_impact,ax21,title='$H_1$ Impact',xlabel='Log Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (0,np.log(maxd)),color_pal=color_pal,add_yticks=True)
         return fig.get_axes()
 
     #legend(loc=0)
@@ -410,13 +413,13 @@ def ani_frame(filename,inter_pruned,gen_pruned,G,pos,filtrations,simps,dpi,plot_
 
         fig,ax = plt.subplots(figsize=(12,12))
         ax.set_yticks([])
-        plot_persistence_barcode_dan(one_pers,ax,title='$H_1$ Barcode',xlabel='Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal)
+        plot_persistence_barcode_dan(one_pers,ax,title='$H_1$ Barcode',xlabel='Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (minb,maxd),color_pal=color_pal,add_yticks=True)
         plt.savefig(cycle_file.replace('.png','_bar.png'),bbox_inches='tight')
         plt.close()
 
         fig,ax = plt.subplots(figsize=(12,12))
         ax.set_yticks([])
-        plot_persistence_barcode_dan(one_impact,ax,title='$H_1$ Impact',xlabel='Log Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (0,np.log(maxd)),color_pal=color_pal)
+        plot_persistence_barcode_dan(one_impact,ax,title='$H_1$ Impact',xlabel='Log Pace Filtration (s/m)',ylabel='Generators',inter_ind=None,minbirth_maxdeath = (0,np.log(maxd)),color_pal=color_pal,add_yticks=True)
         plt.savefig(cycle_file.replace('.png','_bar_impact.png'),bbox_inches='tight')
         plt.close()
 
